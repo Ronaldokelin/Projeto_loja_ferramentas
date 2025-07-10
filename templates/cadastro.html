@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Cadastro de Cliente{% endblock %}
+
+{% block conteudo %}
+  <h2 class="mb-4">Cadastro de Cliente</h2>
+
+  <form method="post" class="border p-4 bg-white shadow-sm rounded">
+    <div class="mb-3">
+      <label for="nome" class="form-label">Nome</label>
+      <input type="text" name="nome" id="nome" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="sobrenome" class="form-label">Sobrenome</label>
+      <input type="text" name="sobrenome" id="sobrenome" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="email" class="form-label">Email</label>
+      <input type="email" name="email" id="email" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="senha" class="form-label">Senha</label>
+      <input type="password" name="senha" id="senha" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="confirmar_senha" class="form-label">Confirmar Senha</label>
+      <input type="password" name="confirmar_senha" id="confirmar_senha" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="endereco" class="form-label">Endereço</label>
+      <input type="text" name="endereco" id="endereco" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label for="celular" class="form-label">Celular</label>
+      <input type="text" name="celular" id="celular" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="empresa" class="form-label">Empresa</label>
+      <input type="text" name="empresa" id="empresa" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label for="contato" class="form-label">Contato</label>
+      <input type="text" name="contato" id="contato" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label for="observacao" class="form-label">Observação</label>
+      <textarea name="observacao" id="observacao" class="form-control"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Cadastrar</button>
+  </form>
+
+  <div id="alerta-carrinho" class="alert alert-success text-center" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; min-width:250px;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function mostrarAlertaCarrinho(msg) {
+    const alerta = document.getElementById('alerta-carrinho');
+    alerta.textContent = msg;
+    alerta.style.display = 'block';
+    alerta.classList.remove('alert-danger');
+    alerta.classList.add('alert-success');
+    setTimeout(() => { alerta.style.display = 'none'; }, 2000);
+  }
+</script>
+{% endblock %}

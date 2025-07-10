@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Meus Pedidos</h2>
+  {% if pedidos %}
+    <table class="table table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Itens</th>
+          <th>Total (R$)</th>
+          <th>PDF</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pedidos %}
+        <tr>
+          <td>{{ p[0] }}</td>
+          <td>{{ p[3] }}</td>
+          <td>{{ '%.2f'|format(p[1]) }}</td>
+          <td>
+            {% if p[2] %}
+              <a href="/{{ p[2] }}" target="_blank" class="btn btn-sm btn-outline-primary">Ver PDF</a>
+            {% else %}-{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="alert alert-info mt-3">Nenhum pedido encontrado.</div>
+  {% endif %}
+</div>
+{% endblock %}

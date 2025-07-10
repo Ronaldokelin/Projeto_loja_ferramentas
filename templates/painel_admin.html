@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Painel Administrativo{% endblock %}
+
+{% block estilos %}
+  <style>
+    .admin-img-thumb {
+      width: 80px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #eee;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+      display: block;
+      margin: 0 auto;
+      background: #fafafa;
+    }
+  </style>
+{% endblock %}
+
+{% block conteudo %}
+  <h2 class="mb-4">Painel de Administração</h2>
+
+  <!-- Alerta para erro de arquivo grande -->
+  {% if get_flashed_messages(category_filter=['danger']) %}
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+      {% if 'entity too large' in message|lower or 'exceeds the capacity limit' in message|lower %}
+        <div class="alert alert-danger text-center">
+          O arquivo enviado é muito grande. Tente redimensionar ou cortar a imagem para menos de 2MB antes de enviar.<br>
+          <strong>Dica:</strong> Use aplicativos de edição de imagem ou <a href="https://www.iloveimg.com/pt/redimensionar-imagem" target="_blank">ferramentas online</a> para ajustar o tamanho.
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  <!-- Formulário de Cadastro -->
+  <form method="post" action="/admin/adicionar" enctype="multipart/form-data" class="border p-4 bg-white shadow-sm rounded">
+    <h4 class="mb-3">Adicionar Novo Produto</h4>
+
+    <div class="mb-3">
+      <label for="nome" class="form-label">Nome</label>
+      <input type="text" name="nome" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="descricao" class="form-label">Descrição</label>
+      <textarea name="descricao" class="form-control" rows="2"></textarea>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="preco" class="form-label">Preço</label>
+        <input type="number" name="preco" step="0.01" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label for="estoque" class="form-label">Estoque</label>
+        <input type="number" name="estoque" min="0" class="form-control" required>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Imagens do Produto (até 5)</label>
+      <input type="file" name="imagens" id="imagens" multiple accept="image/*" class="form-control" required capture="environment">
+      <div class="form-text">
+        As imagens serão redimensionadas para 400x300 e convertidas para .jpg antes de serem salvas. Se estiver no celular, você pode usar a câmera.
+      </div>
+    </div>
+
+    <!-- Preview das imagens -->
+    <div id="preview" class="d-flex flex-wrap gap-2 mt-3"></div>
+
+    <button type="submit" class="btn btn-success mt-3">Salvar Produto</button>
+  </form>
+
+  <!-- Lista de Produtos -->
+  {% if produtos %}
+    <h4 class="mt-5 mb-3">Produtos Cadastrados</h4>
+    <div class="table-responsive">
+      <table class="table table-striped align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Imagem</th>
+            <th>Nome</th>
+            <th>Preço</th>
+            <th>Estoque</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in produtos %}
+            <tr>
+              <td><img src="{{ url_for('static', filename='imagens/' + p[4]) }}" class="admin-img-thumb"></td>
+              <td>{{ p[1] }}</td>
+              <td>R$ {{ '%.2f'|format(p[3]) }}</td>
+              <td>{{ p[5] if p|length > 5 else 0 }}</td>
+              <td>
+                <a href="{{ url_for('editar_produto', produto_id=p[0]) }}" class="btn btn-sm btn-warning me-1">Editar</a>
+                <a href="{{ url_for('excluir_produto', produto_id=p[0]) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remover este produto?')">Excluir</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="mt-4 text-muted">Nenhum produto cadastrado ainda.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const input = document.getElementById('imagens');
+  const preview = document.getElementById('preview');
+
+  // Redimensiona imagens para 400x300 antes do upload
+  input.addEventListener('change', async () => {
+    preview.innerHTML = '';
+    const files = Array.from(input.files);
+    const dt = new DataTransfer();
+
+    // Remove campos de rotação anteriores
+    document.querySelectorAll('.rotacao-input').forEach(e => e.remove());
+
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
+      if (!file.type.startsWith('image/')) continue;
+
+      const reader = new FileReader();
+      reader.onload = async e => {
+        // Cria imagem para redimensionar
+        const img = new window.Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 400;
+          canvas.height = 300;
+          const ctx = canvas.getContext('2d');
+          // Centraliza e corta proporcionalmente
+          let ratio = Math.min(canvas.width / img.width, canvas.height / img.height);
+          let newW = img.width * ratio;
+          let newH = img.height * ratio;
+          let dx = (canvas.width - newW) / 2;
+          let dy = (canvas.height - newH) / 2;
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, dx, dy, newW, newH);
+          canvas.toBlob(blob => {
+            const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {type: 'image/jpeg'});
+            dt.items.add(newFile);
+            // Preview
+            const container = document.createElement('div');
+            container.classList.add('position-relative');
+            container.style.width = '120px';
+            container.style.height = '90px';
+            const imgPreview = document.createElement('img');
+            imgPreview.src = URL.createObjectURL(blob);
+            imgPreview.classList.add('border', 'rounded');
+            imgPreview.style.width = '100%';
+            imgPreview.style.height = '100%';
+            imgPreview.style.objectFit = 'cover';
+            container.appendChild(imgPreview);
+            preview.appendChild(container);
+          }, 'image/jpeg', 0.85);
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+    // Substitui arquivos do input por redimensionados
+    setTimeout(() => { input.files = dt.files; }, 500);
+  });
+</script>
+{% endblock %}

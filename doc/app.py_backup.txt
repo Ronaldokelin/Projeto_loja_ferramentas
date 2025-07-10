@@ -1,0 +1,305 @@
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+import sqlite3
+import os
+import urllib.parse
+from datetime import datetime
+from werkzeug.utils import secure_filename
+from PIL import Image
+from utils.pdf_generator import gerar_pdf
+
+app = Flask(__name__)
+app.secret_key = 'sua_chave_secreta_aqui'  # Altere para algo seguro
+
+def conectar_banco():
+    return sqlite3.connect('produtos.db')
+
+# Página inicial
+@app.route('/')
+def index():
+    return render_template('index.html', current_year=datetime.now().year)
+
+# Login do admin
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        usuario = request.form['usuario']
+        senha = request.form['senha']
+        if usuario == 'admin' and senha == 'senha123':
+            session['admin_logado'] = True
+            flash('Login realizado com sucesso!')
+            return redirect(url_for('admin'))
+        else:
+            flash('Credenciais inválidas.')
+            return redirect(url_for('login'))
+    return render_template('login.html')
+
+# Logout
+@app.route('/logout')
+def logout():
+    session.pop('admin_logado', None)
+    flash('Logout efetuado!')
+    return redirect(url_for('index'))
+
+# Cadastro de cliente
+@app.route('/cadastro', methods=['GET', 'POST'])
+def cadastro():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        email = request.form['email']
+        senha = request.form['senha']
+        con = conectar_banco()
+        cur = con.cursor()
+        cur.execute('INSERT INTO clientes (nome, email, senha) VALUES (?, ?, ?)', (nome, email, senha))
+        con.commit()
+        con.close()
+        flash('Cadastro realizado com sucesso!')
+        return redirect('/')
+    return render_template('cadastro.html')
+
+# Formulário de contato
+@app.route('/contato', methods=['GET', 'POST'])
+def contato():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        email = request.form['email']
+        mensagem = request.form['mensagem']
+        print(f"[CONTATO] {nome} | {email} | {mensagem}")
+        flash('Mensagem enviada com sucesso!')
+        return redirect('/')
+    return render_template('contato.html')
+
+# Catálogo de produtos
+@app.route('/produtos')
+def produtos():
+    con = conectar_banco()
+    cur = con.cursor()
+    cur.execute('SELECT id, nome, descricao, preco, imagem FROM produtos')
+    lista = cur.fetchall()
+    con.close()
+
+    produtos = []
+    for p in lista:
+        produto_id = p[0]
+        imagens = []
+        for i in range(1, 6):
+            nome_img = f"produto_{produto_id}_{i}.jpg"
+            caminho = os.path.join('static', 'imagens', nome_img)
+            if os.path.exists(caminho):
+                imagens.append(nome_img)
+
+        produtos.append({
+            'id': produto_id,
+            'nome': p[1],
+            'descricao': p[2],
+            'preco': p[3],
+            'imagem': p[4],
+            'galeria': imagens
+        })
+
+    return render_template('produtos.html', produtos=produtos)
+
+# Adicionar ao carrinho
+@app.route('/adicionar_carrinho/<int:produto_id>')
+def adicionar_carrinho(produto_id):
+    carrinho = session.get('carrinho', {})
+    pid = str(produto_id)
+    carrinho[pid] = carrinho.get(pid, 0) + 1
+    session['carrinho'] = carrinho
+    flash('Produto adicionado ao carrinho!')
+    return redirect(url_for('produtos'))
+
+# Carrinho
+@app.route('/carrinho')
+def carrinho():
+    carrinho = session.get('carrinho', {})
+    produtos = []
+    total = 0
+    if carrinho:
+        con = conectar_banco()
+        cur = con.cursor()
+        for pid_str, qtd in carrinho.items():
+            pid = int(pid_str)
+            cur.execute('SELECT nome, descricao, preco, imagem FROM produtos WHERE id = ?', (pid,))
+            p = cur.fetchone()
+            if p:
+                subtotal = p[2] * qtd
+                produtos.append({
+                    'id': pid,                  # ➕ ID adicionado
+                    'nome': p[0],
+                    'descricao': p[1],
+                    'preco': p[2],
+                    'imagem': p[3],
+                    'quantidade': qtd,
+                    'subtotal': subtotal
+                })
+                total += subtotal
+        con.close()
+    return render_template('carrinho.html', produtos=produtos, total=total)
+
+# Carrinho aumetar
+@app.route('/carrinho/aumentar/<int:produto_id>')
+def aumentar_quantidade(produto_id):
+    carrinho = session.get('carrinho', {})
+    pid = str(produto_id)
+    if pid in carrinho:
+        carrinho[pid] += 1
+        session['carrinho'] = carrinho
+    return redirect(url_for('carrinho'))
+
+# Carrinho diminuir
+@app.route('/carrinho/diminuir/<int:produto_id>')
+def diminuir_quantidade(produto_id):
+    carrinho = session.get('carrinho', {})
+    pid = str(produto_id)
+    if pid in carrinho and carrinho[pid] > 1:
+        carrinho[pid] -= 1
+    elif pid in carrinho:
+        del carrinho[pid]  # Remove se chegar a zero
+    session['carrinho'] = carrinho
+    return redirect(url_for('carrinho'))
+
+# Carrinho remover
+@app.route('/carrinho/remover/<int:produto_id>')
+def remover_item(produto_id):
+    carrinho = session.get('carrinho', {})
+    pid = str(produto_id)
+    if pid in carrinho:
+        del carrinho[pid]
+        session['carrinho'] = carrinho
+    flash('Item removido do carrinho.')
+    return redirect(url_for('carrinho'))
+
+# Finalizar pedido com PDF + WhatsApp
+@app.route('/finalizar_pedido')
+def finalizar_pedido():
+    carrinho = session.get('carrinho', {})
+    if not carrinho:
+        flash('Carrinho vazio.')
+        return redirect(url_for('produtos'))
+
+    con = conectar_banco()
+    cur = con.cursor()
+    produtos = []
+    total = 0
+    for pid_str, qtd in carrinho.items():
+        pid = int(pid_str)
+        cur.execute('SELECT nome, descricao, preco FROM produtos WHERE id = ?', (pid,))
+        item = cur.fetchone()
+        if item:
+            for _ in range(qtd):
+                produtos.append(item)
+                total += item[2]
+    con.close()
+
+    nome_arquivo = f"orcamento_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+    caminho_pdf = os.path.join('static', nome_arquivo)
+    gerar_pdf("Cliente", produtos, total, caminho_pdf)
+
+    numero = '5512345678'
+    texto = urllib.parse.quote(f"Olá! Pedido realizado. Orçamento: {request.host_url}static/{nome_arquivo}")
+    return redirect(f"https://wa.me/{numero}?text={texto}")
+
+# Painel administrativo
+@app.route('/admin')
+def admin():
+    if not session.get('admin_logado'):
+        flash('Você precisa estar logado.')
+        return redirect(url_for('login'))
+
+    con = conectar_banco()
+    cur = con.cursor()
+    cur.execute('SELECT id, nome, descricao, preco, imagem FROM produtos')
+    produtos = cur.fetchall()
+    con.close()
+    return render_template('painel_admin.html', produtos=produtos)
+
+# Adicionar produto com imagens redimensionadas
+@app.route('/admin/adicionar', methods=['POST'])
+def admin_adicionar():
+    if not session.get('admin_logado'):
+        flash('Acesso negado.')
+        return redirect(url_for('login'))
+
+    nome = request.form['nome']
+    descricao = request.form['descricao']
+    preco = request.form['preco']
+    arquivos = request.files.getlist('imagens')
+
+    con = conectar_banco()
+    cur = con.cursor()
+    cur.execute('INSERT INTO produtos (nome, descricao, preco, imagem) VALUES (?, ?, ?, ?)',
+                (nome, descricao, preco, ''))
+    produto_id = cur.lastrowid
+
+    imagens_salvas = []
+    pasta = os.path.join('static', 'imagens')
+    os.makedirs(pasta, exist_ok=True)
+
+    for i, arquivo in enumerate(arquivos[:5]):
+        if arquivo and arquivo.filename:
+            nome_img = f"produto_{produto_id}_{i+1}.jpg"
+            caminho = os.path.join(pasta, secure_filename(nome_img))
+
+            imagem = Image.open(arquivo)
+            imagem = imagem.convert('RGB')
+            imagem = imagem.resize((800, 600))
+            imagem.save(caminho, format='JPEG', quality=85)
+
+            imagens_salvas.append(nome_img)
+
+    if imagens_salvas:
+        cur.execute('UPDATE produtos SET imagem = ? WHERE id = ?', (imagens_salvas[0], produto_id))
+
+    con.commit()
+    con.close()
+    flash('Produto cadastrado com sucesso!')
+    return redirect(url_for('admin'))
+
+# Editar produto
+@app.route('/admin/editar/<int:produto_id>', methods=['GET', 'POST'])
+def editar_produto(produto_id):
+    if not session.get('admin_logado'):
+        flash('Acesso negado.')
+        return redirect(url_for('login'))
+
+    con = conectar_banco()
+    cur = con.cursor()
+
+    if request.method == 'POST':
+        nome = request.form['nome']
+        descricao = request.form['descricao']
+        preco = request.form['preco']
+        cur.execute('UPDATE produtos SET nome = ?, descricao = ?, preco = ? WHERE id = ?',
+                    (nome, descricao, preco, produto_id))
+        con.commit()
+        con.close()
+        flash('Produto atualizado!')
+        return redirect(url_for('admin'))
+
+    cur.execute('SELECT id, nome, descricao, preco, imagem FROM produtos WHERE id = ?', (produto_id,))
+    produto = cur.fetchone()
+    con.close()
+
+    if produto:
+        return render_template('editar_produto.html', produto=produto)
+    else:
+        flash('Produto não encontrado.')
+        return redirect(url_for('admin'))
+
+# Excluir produto
+@app.route('/admin/excluir/<int:produto_id>')
+def excluir_produto(produto_id):
+    if not session.get('admin_logado'):
+        flash('Acesso negado.')
+        return redirect(url_for('login'))
+
+    con = conectar_banco()
+    cur = con.cursor()
+    cur.execute('DELETE FROM produtos WHERE id = ?', (produto_id,))
+    con.commit()
+    con.close()
+    flash('Produto excluído!')
+    return redirect(url_for('admin'))
+
+if __name__ == '__main__':
+    app.run(debug=True)

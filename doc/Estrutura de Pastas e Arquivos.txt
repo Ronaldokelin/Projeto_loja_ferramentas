@@ -1,0 +1,25 @@
+catálogo-flask/
+│
+├── app.py                            # Arquivo principal da aplicação Flask
+├── produtos.db                       # Banco de dados SQLite (gerado automaticamente)
+├── requirements.txt                  # Lista de dependências (opcional para deploy)
+│
+├── static/                           # Arquivos estáticos (imagens, PDFs, CSS, JS)
+│   ├── imagens/                      # Imagens dos produtos
+│   └── orcamento_*.pdf               # PDFs gerados com orçamento
+│
+├── templates/                        # Arquivos HTML
+│   ├── base.html                     # Template base com Bootstrap e estrutura comum
+│   ├── index.html                    # Página inicial
+│   ├── login.html                    # Tela de login do administrador
+│   ├── cadastro.html                 # Formulário de cadastro do cliente
+│   ├── contato.html                  # Página de contato
+│   ├── produtos.html                 # Catálogo com galeria de imagens
+│   ├── carrinho.html                 # Visualização e controle do carrinho
+│   ├── painel_admin.html             # Painel administrativo com cadastro e listagem
+│   └── editar_produto.html          # Formulário para editar produto existente
+│
+├── utils/                            # Funções auxiliares
+│   └── pdf_generator.py              # Função gerar_pdf(cliente, produtos, total, caminho)
+│
+└── README.md                         # Documentação opcional do projeto

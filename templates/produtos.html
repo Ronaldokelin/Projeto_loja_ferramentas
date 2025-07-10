@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Catálogo de Produtos{% endblock %}
+
+{% block estilos %}
+  <style>
+    .card.produto-card {
+      width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .estoque-info {
+      font-size: 0.95em;
+      color: #555;
+      margin-bottom: 0.5em;
+    }
+    #alerta-carrinho {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      min-width: 250px;
+      display: none;
+    }
+  </style>
+{% endblock %}
+
+{% block conteudo %}
+  <div id="alerta-carrinho" class="alert alert-success text-center"></div>
+  <h2 class="mb-4">Catálogo de Ferramentas</h2>
+
+  <form method="post" class="mb-4">
+    <div class="input-group">
+      <input type="text" name="busca" class="form-control" placeholder="Buscar por nome ou descrição..." value="{{ termo|default('') }}">
+      <button class="btn btn-outline-primary" type="submit">Buscar</button>
+    </div>
+  </form>
+
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for p in produtos %}
+      <div class="col">
+        <div class="card h-100 shadow-sm produto-card">
+
+          <div class="position-relative">
+            {% if p.galeria %}
+              <div id="carousel{{ p.id }}" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                  {% for img in p.galeria %}
+                    <div class="carousel-item {% if loop.index == 1 %}active{% endif %}">
+                      <img src="{{ url_for('static', filename='imagens/' + img) }}" class="d-block w-100" alt="{{ p.nome }}">
+                    </div>
+                  {% endfor %}
+                </div>
+                {% if p.galeria|length > 1 %}
+                  <button class="carousel-control-prev" type="button" data-bs-target="#carousel{{ p.id }}" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon"></span>
+                  </button>
+                  <button class="carousel-control-next" type="button" data-bs-target="#carousel{{ p.id }}" data-bs-slide="next">
+                    <span class="carousel-control-next-icon"></span>
+                  </button>
+                {% endif %}
+              </div>
+
+              <div class="d-flex justify-content-center gap-2 mt-2">
+                {% for img in p.galeria %}
+                  <img src="{{ url_for('static', filename='imagens/' + img) }}" class="border rounded" style="width: 60px; height: 45px; object-fit: cover;">
+                {% endfor %}
+              </div>
+
+              <div class="text-muted text-end"><small>{{ p.galeria|length }} imagem{{ 's' if p.galeria|length > 1 else '' }}</small></div>
+            {% else %}
+              <img src="{{ url_for('static', filename='imagens/' + p.imagem) }}" class="card-img-top" alt="{{ p.nome }}">
+            {% endif %}
+          </div>
+
+          <div class="card-body">
+            <h5 class="card-title">{{ p.nome }}</h5>
+            <div class="estoque-info">
+              {% if p.estoque > 0 %}
+                <span>Estoque: <strong>{{ p.estoque }}</strong> unidade{{ 's' if p.estoque > 1 else '' }}</span>
+              {% else %}
+                <span class="text-danger">Produto esgotado</span>
+              {% endif %}
+            </div>
+            <p class="card-text">{{ p.descricao }}</p>
+            <p class="fw-bold text-success">R$ {{ '%.2f'|format(p.preco) }}</p>
+            <button type="button" class="btn btn-sm btn-primary adicionar-carrinho" data-id="{{ p.id }}" {% if p.estoque == 0 %}disabled{% endif %}>Adicionar ao carrinho</button>
+          </div>
+
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.adicionar-carrinho').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const produtoId = this.getAttribute('data-id');
+      fetch(`/adicionar_carrinho/${produtoId}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const alerta = document.getElementById('alerta-carrinho');
+          alerta.textContent = data.message;
+          alerta.style.display = 'block';
+          alerta.classList.remove('alert-danger');
+          alerta.classList.add('alert-success');
+          setTimeout(() => { alerta.style.display = 'none'; }, 2000);
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

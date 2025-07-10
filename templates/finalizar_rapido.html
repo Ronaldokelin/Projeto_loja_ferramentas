@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Finalizar Pedido - Dados Rápidos{% endblock %}
+
+{% block conteudo %}
+  <h2 class="mb-4">Informe seus dados para finalizar o pedido</h2>
+  <form method="post" class="border p-4 bg-white shadow-sm rounded">
+    <div class="mb-3">
+      <label for="nome" class="form-label">Nome</label>
+      <input type="text" name="nome" id="nome" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="sobrenome" class="form-label">Sobrenome</label>
+      <input type="text" name="sobrenome" id="sobrenome" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="celular" class="form-label">Celular</label>
+      <input type="text" name="celular" id="celular" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Finalizar Pedido</button>
+  </form>
+{% endblock %}

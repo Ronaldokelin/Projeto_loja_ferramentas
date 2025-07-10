@@ -1,0 +1,24 @@
+Etapas de Criação
+1. Banco de dados (produtos.db)
+- Tabelas:
+- produtos (id, nome, descricao, preco, imagem)
+- clientes (id, nome, email, senha_hash)
+- pedidos (id, cliente_id, total, data)
+- itens_pedido (id, pedido_id, produto_id, quantidade)
+2. Funcionalidades base
+- Página inicial: destaques e links
+- Lista de produtos (catálogo)
+- Carrinho com produtos selecionados
+- Cadastro de cliente com senha segura
+- Checkout: cliente envia pedido, e PDF é gerado
+- Redirecionamento para o WhatsApp com orçamento
+3. Funcionalidades administrativas
+- Login simples com senha
+- Inserir, editar e remover produtos via formulário
+- Visualização rápida de pedidos recebidos
+4. Geração de PDF (utils/pdf_generator.py)
+- Gera o PDF de orçamento com dados do cliente e lista de produtos
+- Arquivo salvo temporariamente para uso no WhatsApp
+5. Integração com WhatsApp
+- Monta um link com mensagem automatizada
+- Cliente é redirecionado para seu número com a mensagem e instruções

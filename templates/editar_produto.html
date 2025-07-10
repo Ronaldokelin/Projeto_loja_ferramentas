@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Editar Produto{% endblock %}
+
+{% block estilos %}
+  <style>
+    .img-editar-produto {
+      width: 220px;
+      height: 165px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 2px solid #eee;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      display: block;
+      margin: 0 auto 10px auto;
+      background: #fafafa;
+    }
+    .galeria-editar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+    .galeria-item-editar {
+      text-align: center;
+      width: 150px;
+    }
+    .galeria-item-editar img {
+      width: 140px;
+      height: 105px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #eee;
+      margin-bottom: 6px;
+      background: #fafafa;
+    }
+    .galeria-item-editar form {
+      display: inline-block;
+      margin: 0 2px;
+    }
+    .add-img-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #bbb;
+      border-radius: 8px;
+      width: 140px;
+      height: 105px;
+      background: #fafafa;
+      color: #888;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .add-img-form:hover {
+      border-color: #007bff;
+      color: #007bff;
+    }
+    .add-img-form input[type=file] {
+      display: none;
+    }
+    .add-img-label {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: absolute;
+      top: 0; left: 0;
+    }
+    #alerta-carrinho {
+      display:none;
+      position:fixed;
+      top:20px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:9999;
+      min-width:250px;
+    }
+  </style>
+{% endblock %}
+
+{% block conteudo %}
+  <h2 class="mb-4">Editar Produto</h2>
+
+  <form method="post" class="border p-4 bg-white shadow-sm rounded">
+    <div class="mb-3">
+      <label class="form-label">Nome</label>
+      <input type="text" name="nome" class="form-control" value="{{ produto[1] }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Descrição</label>
+      <textarea name="descricao" class="form-control" rows="2">{{ produto[2] }}</textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Preço</label>
+      <input type="number" step="0.01" name="preco" class="form-control" value="{{ produto[3] }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Estoque</label>
+      <input type="number" name="estoque" class="form-control" value="{{ produto[5] }}" min="0" required>
+    </div>
+
+    <div class="mb-3 text-center">
+      <label class="form-label">Imagem atual:</label><br>
+      <img src="{{ url_for('static', filename='imagens/' + produto[4]) }}" class="img-editar-produto">
+    </div>
+
+    <div class="mb-3 text-center">
+      <label class="form-label">Imagens do Produto:</label>
+      <div class="galeria-editar">
+        {% for img in galeria %}
+        <div class="galeria-item-editar">
+          <img src="{{ url_for('static', filename='imagens/' + img) }}" alt="Imagem do produto">
+          <form method="post" style="display:inline;">
+            <input type="hidden" name="deletar_imagem" value="{{ img }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remover esta imagem?')">Deletar</button>
+          </form>
+          <form method="post" enctype="multipart/form-data" style="display:inline;">
+            <input type="hidden" name="img_nome" value="{{ img }}">
+            <input type="file" name="nova_imagem" accept="image/*" style="display:none;" onchange="this.form.submit()" id="file-{{ loop.index }}">
+            <label for="file-{{ loop.index }}" class="btn btn-sm btn-outline-primary mt-1">Trocar</label>
+          </form>
+        </div>
+        {% endfor %}
+        {% if galeria|length < 5 %}
+        <form method="post" enctype="multipart/form-data" class="add-img-form">
+          <input type="hidden" name="adicionar_nova_imagem" value="1">
+          <input type="file" name="nova_imagem_galeria" accept="image/*" id="add-img-input" onchange="this.form.submit()">
+          <label for="add-img-input" class="add-img-label">
+            <span>Adicionar<br>Imagem</span>
+          </label>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+    <a href="{{ url_for('admin') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+
+  <div id="alerta-carrinho" class="alert alert-success text-center" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; min-width:250px;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function mostrarAlertaCarrinho(msg) {
+    const alerta = document.getElementById('alerta-carrinho');
+    alerta.textContent = msg;
+    alerta.style.display = 'block';
+    alerta.classList.remove('alert-danger');
+    alerta.classList.add('alert-success');
+    setTimeout(() => { alerta.style.display = 'none'; }, 2000);
+  }
+</script>
+{% endblock %}

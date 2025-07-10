@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Carrinho{% endblock %}
+
+{% block conteudo %}
+  <h2 class="mb-4">Carrinho de Compras</h2>
+
+  {% if produtos %}
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Imagem</th>
+            <th>Produto</th>
+            <th>Descrição</th>
+            <th>Preço</th>
+            <th>Quantidade</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in produtos %}
+            <tr>
+              <td><img src="{{ url_for('static', filename='imagens/' + item.imagem) }}" width="80"></td>
+              <td>{{ item.nome }}</td>
+              <td>{{ item.descricao }}</td>
+              <td>R$ {{ '%.2f'|format(item.preco) }}</td>
+
+              <td class="text-center">
+                <div class="d-flex justify-content-center align-items-center">
+                  <a href="{{ url_for('diminuir_quantidade', produto_id=item.id) }}" class="btn btn-sm btn-outline-secondary me-1">–</a>
+                  <span>{{ item.quantidade }}</span>
+                  <a href="{{ url_for('aumentar_quantidade', produto_id=item.id) }}" class="btn btn-sm btn-outline-secondary ms-1">+</a>
+                </div>
+              </td>
+
+              <td>R$ {{ '%.2f'|format(item.subtotal) }}</td>
+              <td class="text-center">
+                <a href="{{ url_for('remover_item', produto_id=item.id) }}" class="btn btn-sm btn-outline-danger remover-item-carrinho" onclick="return confirm('Remover este item?')">✖</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <h4 class="text-end">Total: <span class="text-success">R$ {{ '%.2f'|format(total) }}</span></h4>
+    <a href="{{ url_for('finalizar_pedido') }}" class="btn btn-success mt-3">📤 Finalizar Pedido</a>
+  {% else %}
+    <div class="alert alert-warning">Seu carrinho está vazio.</div>
+  {% endif %}
+
+  <a href="{{ url_for('produtos') }}" class="btn btn-outline-secondary mt-3">← Voltar aos produtos</a>
+
+  <div id="alerta-carrinho" class="alert alert-success text-center" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; min-width:250px;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function mostrarAlertaCarrinho(msg, tipo = 'success') {
+    const alerta = document.getElementById('alerta-carrinho');
+    alerta.textContent = msg;
+    alerta.style.display = 'block';
+    alerta.classList.remove('alert-danger', 'alert-success', 'alert-info');
+    alerta.classList.add('alert-' + tipo);
+    setTimeout(() => { alerta.style.display = 'none'; }, 2000);
+  }
+
+  // Adiciona AJAX para remover item do carrinho
+  document.querySelectorAll('.remover-item-carrinho').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const url = this.getAttribute('href');
+      fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            mostrarAlertaCarrinho(data.message, 'info');
+            setTimeout(() => { location.reload(); }, 1200);
+          }
+        });
+    });
+  });
+</script>
+{% endblock %}

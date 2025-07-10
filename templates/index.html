@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Início{% endblock %}
+
+{% block conteudo %}
+  <div class="text-center mb-5">
+    <h1 class="display-5">🔧 Bem-vindo à Loja de Ferramentas</h1>
+    <p class="lead">Encontre as ferramentas certas para cada trabalho.</p>
+  </div>
+
+  <div class="d-grid gap-3 col-12 col-md-6 mx-auto">
+    <a href="{{ url_for('produtos') }}" class="btn btn-primary btn-lg">Ver Produtos</a>
+    <a href="{{ url_for('carrinho') }}" class="btn btn-outline-secondary btn-lg">Carrinho</a>
+    <a href="{{ url_for('cadastro') }}" class="btn btn-outline-primary btn-lg">Cadastro de Cliente</a>
+    <a href="{{ url_for('contato') }}" class="btn btn-outline-dark btn-lg">Fale Conosco</a>
+    <a href="{{ url_for('admin') }}" class="btn btn-warning btn-lg">Painel Administrativo</a>
+  </div>
+{% endblock %}
