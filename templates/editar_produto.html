@@ -88,7 +88,7 @@
 {% block conteudo %}
   <h2 class="mb-4">Editar Produto</h2>
 
-  <form method="post" class="border p-4 bg-white shadow-sm rounded">
+  <form method="post" enctype="multipart/form-data" class="border p-4 bg-white shadow-sm rounded">
     <div class="mb-3">
       <label class="form-label">Nome</label>
       <input type="text" name="nome" class="form-control" value="{{ produto[1] }}" required>
@@ -110,12 +110,19 @@
     </div>
 
     <div class="mb-3 text-center">
-      <label class="form-label">Imagem atual:</label><br>
-      <img src="{{ url_for('static', filename='imagens/' + produto[4]) }}" class="img-editar-produto">
+      <label class="form-label">Imagem principal:</label><br>
+      {% if produto[4] %}
+        <img src="{{ url_for('static', filename='imagens/' + produto[4]) }}" class="img-editar-produto mb-2">
+      {% else %}
+        <span class="text-muted">Sem imagem principal</span><br>
+      {% endif %}
+      <input type="file" name="nova_imagem" accept="image/*" class="form-control mt-2" style="max-width:300px; margin:0 auto;">
+      <input type="hidden" name="img_nome" value="{{ produto[4] }}">
+      <small class="text-muted">Selecione uma nova imagem para substituir a principal.</small>
     </div>
 
     <div class="mb-3 text-center">
-      <label class="form-label">Imagens do Produto:</label>
+      <label class="form-label">Imagens do Produto (galeria):</label>
       <div class="galeria-editar">
         {% for img in galeria %}
         <div class="galeria-item-editar">
@@ -123,11 +130,6 @@
           <form method="post" style="display:inline;">
             <input type="hidden" name="deletar_imagem" value="{{ img }}">
             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remover esta imagem?')">Deletar</button>
-          </form>
-          <form method="post" enctype="multipart/form-data" style="display:inline;">
-            <input type="hidden" name="img_nome" value="{{ img }}">
-            <input type="file" name="nova_imagem" accept="image/*" style="display:none;" onchange="this.form.submit()" id="file-{{ loop.index }}">
-            <label for="file-{{ loop.index }}" class="btn btn-sm btn-outline-primary mt-1">Trocar</label>
           </form>
         </div>
         {% endfor %}

@@ -17,6 +17,7 @@
     <div class="container">
       <a class="navbar-brand" href="{{ url_for('index') }}">🔧 Loja de Ferramentas</a>
       <div class="d-flex">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-light btn-sm me-2">Início</a>
         <a href="{{ url_for('produtos') }}" class="btn btn-outline-light btn-sm me-2">Produtos</a>
         <a href="{{ url_for('carrinho') }}" class="btn btn-outline-light btn-sm me-2">Carrinho</a>
         <a href="{{ url_for('cadastro') }}" class="btn btn-outline-light btn-sm me-2">Cadastro</a>
@@ -67,6 +68,7 @@
     // Exibe mensagens flash do backend como alerta flutuante
     document.addEventListener('DOMContentLoaded', function() {
       var flashesData = {{ flashes|tojson|safe }};
+      if (!Array.isArray(flashesData)) flashesData = [];
       flashesData.forEach(function(flash) {
         var tipo = (flash[0] === 'danger' || flash[0] === 'error') ? 'danger' : flash[0];
         mostrarAlertaCarrinho(flash[1], tipo);

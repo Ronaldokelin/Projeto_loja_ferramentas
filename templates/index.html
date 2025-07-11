@@ -8,11 +8,22 @@
     <p class="lead">Encontre as ferramentas certas para cada trabalho.</p>
   </div>
 
-  <div class="d-grid gap-3 col-12 col-md-6 mx-auto">
-    <a href="{{ url_for('produtos') }}" class="btn btn-primary btn-lg">Ver Produtos</a>
-    <a href="{{ url_for('carrinho') }}" class="btn btn-outline-secondary btn-lg">Carrinho</a>
-    <a href="{{ url_for('cadastro') }}" class="btn btn-outline-primary btn-lg">Cadastro de Cliente</a>
-    <a href="{{ url_for('contato') }}" class="btn btn-outline-dark btn-lg">Fale Conosco</a>
-    <a href="{{ url_for('admin') }}" class="btn btn-warning btn-lg">Painel Administrativo</a>
+  <!-- Produtos em destaque -->
+  {% if destaques %}
+  <div class="row justify-content-center mb-4">
+    {% for p in destaques %}
+      <div class="col-12 col-md-6 col-lg-3 mb-3">
+        <div class="card h-100 shadow-sm">
+          <img src="{{ url_for('static', filename='imagens/' ~ p[4]) }}" class="card-img-top" alt="{{ p[1] }}" style="height:180px;object-fit:cover;">
+          <div class="card-body">
+            <h5 class="card-title">{{ p[1] }}</h5>
+            <p class="card-text small">{{ p[2][:80] }}{% if p[2]|length > 80 %}...{% endif %}</p>
+            <div class="fw-bold mb-2">R$ {{ '%.2f'|format(p[3]) }}</div>
+            <a href="{{ url_for('produtos') }}" class="btn btn-primary btn-sm">Ver Produto</a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
   </div>
+  {% endif %}
 {% endblock %}

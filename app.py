@@ -8,6 +8,10 @@ import re
 from werkzeug.security import generate_password_hash, check_password_hash
 import glob
 
+# =========================
+# Configuração do Flask e utilitários
+# =========================
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'sua_chave_secreta_aqui')
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # Limite de 2MB para upload
@@ -15,12 +19,27 @@ app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # Limite de 2MB para upload
 def conectar_banco():
     return sqlite3.connect('produtos.db')
 
+# =========================
+# Rotas Públicas
+# =========================
+
 @app.route('/')
 def index():
-    return render_template('index.html', current_year=datetime.now().year)
+    """Página inicial com produtos em destaque"""
+    destaques = []
+    try:
+        with conectar_banco() as con:
+            cur = con.cursor()
+            # Seleciona até 4 produtos com maior estoque ou mais recentes
+            cur.execute('SELECT id, nome, descricao, preco, imagem FROM produtos ORDER BY estoque DESC, id DESC LIMIT 4')
+            destaques = cur.fetchall()
+    except Exception:
+        destaques = []
+    return render_template('index.html', current_year=datetime.now().year, destaques=destaques)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """Login de admin e cliente"""
     if request.method == 'POST':
         usuario = request.form['usuario'].strip()
         senha = request.form['senha'].strip()
@@ -53,6 +72,7 @@ def login():
 
 @app.route('/logout')
 def logout():
+    """Logout de admin e cliente"""
     session.pop('admin_logado', None)
     session.pop('cliente_logado', None)
     session.pop('usuario_email', None)
@@ -60,8 +80,13 @@ def logout():
     flash('Logout efetuado!', 'info')
     return redirect(url_for('index'))
 
+# =========================
+# Rotas de Cadastro
+# =========================
+
 @app.route('/cadastro', methods=['GET', 'POST'])
 def cadastro():
+    """Cadastro de novo cliente"""
     if request.method == 'POST':
         nome = request.form['nome'].strip()
         sobrenome = request.form['sobrenome'].strip()
@@ -98,6 +123,7 @@ def cadastro():
 
 @app.route('/contato', methods=['GET', 'POST'])
 def contato():
+    """Formulário de contato"""
     if request.method == 'POST':
         nome = request.form['nome']
         email = request.form['email']
@@ -109,24 +135,34 @@ def contato():
 
 @app.route('/produtos', methods=['GET', 'POST'])
 def produtos():
-    termo = ''
-    produtos = []
+    """
+    Listagem e busca de produtos
+    - Exibe todos os produtos cadastrados
+    - Permite busca por nome ou descrição
+    - Monta galeria de imagens para cada produto
+    """
+    termo = ''  # Termo de busca
+    produtos = []  # Lista final de produtos para exibir
     if request.method == 'POST':
-        termo = request.form.get('busca', '').strip()
+        termo = request.form.get('busca', '').strip()  # Recebe termo de busca do formulário
     try:
         with conectar_banco() as con:
             cur = con.cursor()
             if termo:
+                # Busca produtos pelo termo
                 cur.execute('SELECT id, nome, descricao, preco, imagem, estoque FROM produtos WHERE nome LIKE ? OR descricao LIKE ?', (f'%{termo}%', f'%{termo}%'))
             else:
+                # Busca todos os produtos
                 cur.execute('SELECT id, nome, descricao, preco, imagem, estoque FROM produtos')
             lista = cur.fetchall()
     except Exception as e:
         flash('Erro ao acessar produtos.', 'danger')
         lista = []
+    # Monta lista de produtos com galeria de imagens
     for p in lista:
         produto_id = p[0]
         imagens = []
+        # Procura até 5 imagens para cada produto
         for i in range(1, 6):
             nome_img = f"produto_{produto_id}_{i}.jpg"
             caminho = os.path.join('static', 'imagens', nome_img)
@@ -139,36 +175,54 @@ def produtos():
             'preco': p[3],
             'imagem': p[4],
             'estoque': p[5],
-            'galeria': imagens
+            'galeria': imagens  # Lista de imagens do produto
         })
+    # Renderiza página de produtos
     return render_template('produtos.html', produtos=produtos, termo=termo)
 
 @app.route('/adicionar_carrinho/<int:produto_id>', methods=['POST', 'GET'])
 def adicionar_carrinho(produto_id):
-    carrinho = session.get('carrinho', {})
+    """
+    Adiciona um produto ao carrinho do usuário
+    - Se já existe, incrementa a quantidade
+    - Suporta requisições AJAX e padrão
+    """
+    carrinho = session.get('carrinho', {})  # Recupera carrinho da sessão
     pid = str(produto_id)
-    carrinho[pid] = carrinho.get(pid, 0) + 1
-    session['carrinho'] = carrinho
+    carrinho[pid] = carrinho.get(pid, 0) + 1  # Adiciona ou incrementa produto
+    session['carrinho'] = carrinho  # Atualiza carrinho na sessão
+    # Resposta para AJAX
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'success': True, 'message': 'Produto adicionado ao carrinho!'})
+    # Resposta padrão
     flash('Produto adicionado ao carrinho!', 'success')
     return redirect(url_for('produtos'))
 
-# 🛒 Carrinho
+
+# =========================
+# Rotas de Carrinho
+# =========================
+
 @app.route('/carrinho')
 def carrinho():
-    carrinho = session.get('carrinho', {})
-    produtos = []
-    total = 0
+    """
+    Exibe o carrinho de compras do usuário
+    - Lista produtos, quantidades e subtotal
+    - Calcula o valor total
+    """
+    carrinho = session.get('carrinho', {})  # Recupera carrinho da sessão
+    produtos = []  # Lista de produtos no carrinho
+    total = 0  # Valor total do carrinho
     if carrinho:
         con = conectar_banco()
         cur = con.cursor()
         for pid_str, qtd in carrinho.items():
             pid = int(pid_str)
+            # Busca dados do produto
             cur.execute('SELECT nome, descricao, preco, imagem FROM produtos WHERE id = ?', (pid,))
             p = cur.fetchone()
             if p:
-                subtotal = p[2] * qtd
+                subtotal = p[2] * qtd  # Calcula subtotal
                 produtos.append({
                     'id': pid,
                     'nome': p[0],
@@ -180,11 +234,12 @@ def carrinho():
                 })
                 total += subtotal
         con.close()
+    # Renderiza página do carrinho
     return render_template('carrinho.html', produtos=produtos, total=total)
 
-# ➕➖ Controle de quantidade
 @app.route('/carrinho/aumentar/<int:produto_id>')
 def aumentar_quantidade(produto_id):
+    """Aumenta a quantidade de um item no carrinho"""
     carrinho = session.get('carrinho', {})
     pid = str(produto_id)
     if pid in carrinho:
@@ -194,6 +249,7 @@ def aumentar_quantidade(produto_id):
 
 @app.route('/carrinho/diminuir/<int:produto_id>')
 def diminuir_quantidade(produto_id):
+    """Diminui a quantidade de um item no carrinho"""
     carrinho = session.get('carrinho', {})
     pid = str(produto_id)
     if pid in carrinho and carrinho[pid] > 1:
@@ -205,6 +261,7 @@ def diminuir_quantidade(produto_id):
 
 @app.route('/carrinho/remover/<int:produto_id>')
 def remover_item(produto_id):
+    """Remove um item do carrinho"""
     carrinho = session.get('carrinho', {})
     pid = str(produto_id)
     if pid in carrinho:
@@ -215,7 +272,10 @@ def remover_item(produto_id):
     flash('Item removido do carrinho.', 'info')
     return redirect(url_for('carrinho'))
 
-# 🧾 Finalizar pedido
+# =========================
+# Rotas de Pedido
+# =========================
+
 @app.route('/finalizar_pedido', methods=['GET', 'POST'])
 def finalizar_pedido():
     """Finaliza o pedido, gera PDF e salva no banco de dados."""
@@ -289,12 +349,43 @@ def finalizar_pedido():
     texto = urllib.parse.quote(f"Olá! Pedido realizado. Orçamento: {request.host_url}static/{nome_pdf}")
     return redirect(f"https://wa.me/{numero}?text={texto}")
 
-# ⚙️ Painel administrativo
-@app.route('/admin')
+# =========================
+# Rotas Administrativas
+# =========================
+
+@app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    """Painel administrativo para gerenciar produtos e importar via Excel"""
     if not session.get('admin_logado'):
         flash('Acesso restrito.', 'danger')
         return redirect(url_for('login'))
+    # Importação via Excel
+    if request.method == 'POST' and 'excel_produtos' in request.files:
+        excel_file = request.files['excel_produtos']
+        if excel_file.filename:
+            caminho_excel = os.path.join('doc', 'upload_temp.xlsx')
+            excel_file.save(caminho_excel)
+            import pandas as pd
+            try:
+                df = pd.read_excel(caminho_excel)
+                colunas_esperadas = {'nome', 'descricao', 'preco', 'estoque'}
+                if not colunas_esperadas.issubset(df.columns):
+                    flash('Colunas esperadas não encontradas no Excel.', 'danger')
+                else:
+                    with conectar_banco() as con:
+                        cur = con.cursor()
+                        for _, row in df.iterrows():
+                            cur.execute('INSERT INTO produtos (nome, descricao, preco, imagem, estoque) VALUES (?, ?, ?, ?, ?)',
+                                        (row['nome'], row['descricao'], float(row['preco']), '', int(row['estoque'])))
+                        con.commit()
+                    flash('Produtos importados com sucesso!', 'success')
+            except Exception as e:
+                flash(f'Erro ao importar Excel: {str(e)}', 'danger')
+            finally:
+                if os.path.exists(caminho_excel):
+                    os.remove(caminho_excel)
+        else:
+            flash('Selecione um arquivo Excel.', 'warning')
     try:
         with conectar_banco() as con:
             cur = con.cursor()
@@ -305,9 +396,9 @@ def admin():
         produtos = []
     return render_template('painel_admin.html', produtos=produtos)
 
-# ➕ Cadastro de produto com imagens
 @app.route('/admin/adicionar', methods=['POST'])
 def admin_adicionar():
+    """Cadastro de produto pelo admin"""
     if not session.get('admin_logado'):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('login'))
@@ -364,9 +455,9 @@ def admin_adicionar():
         flash('Erro ao cadastrar produto.', 'danger')
         return redirect(url_for('admin'))
 
-# ✏️ Edição de produto
 @app.route('/admin/editar/<int:produto_id>', methods=['GET', 'POST'])
 def editar_produto(produto_id):
+    """Edição de produto pelo admin"""
     if not session.get('admin_logado'):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('login'))
@@ -383,18 +474,36 @@ def editar_produto(produto_id):
             flash('Imagem removida com sucesso!', 'info')
         return redirect(url_for('editar_produto', produto_id=produto_id))
 
-    # Trocar imagem
-    if request.method == 'POST' and 'nova_imagem' in request.files:
-        nova_img = request.files['nova_imagem']
+    # Edição completa do produto (campos + imagem)
+    if request.method == 'POST' and not (
+        'deletar_imagem' in request.form or
+        ('adicionar_nova_imagem' in request.form and 'nova_imagem_galeria' in request.files and request.files['nova_imagem_galeria'].filename)
+    ):
+        nome = request.form['nome']
+        descricao = request.form['descricao']
+        preco = request.form['preco']
+        estoque = request.form['estoque']
+        # Se houver nova imagem, salva
+        nova_img = request.files.get('nova_imagem', None)
         if nova_img and nova_img.filename and nova_img.mimetype.startswith('image/'):
-            nome_img = request.form['img_nome']
-            img_path = os.path.join('static', 'imagens', nome_img)
-            imagem = Image.open(nova_img)
-            imagem = imagem.convert('RGB')
-            imagem = imagem.resize((400, 300))
-            imagem.save(img_path, format='JPEG', quality=85)
-            flash('Imagem substituída com sucesso!', 'success')
-        return redirect(url_for('editar_produto', produto_id=produto_id))
+            nome_img = request.form.get('img_nome', None)
+            if nome_img:
+                try:
+                    img_path = os.path.join('static', 'imagens', nome_img)
+                    imagem = Image.open(nova_img)
+                    imagem = imagem.convert('RGB')
+                    imagem = imagem.resize((400, 300))
+                    imagem.save(img_path, format='JPEG', quality=85)
+                    flash('Imagem substituída com sucesso!', 'success')
+                except Exception as e:
+                    flash(f'Erro ao processar imagem: {str(e)}', 'danger')
+        # Atualiza dados do produto
+        cur.execute('UPDATE produtos SET nome = ?, descricao = ?, preco = ?, estoque = ? WHERE id = ?',
+                    (nome, descricao, preco, estoque, produto_id))
+        con.commit()
+        con.close()
+        flash('Produto atualizado com sucesso!', 'success')
+        return redirect(url_for('admin'))
 
     # Adicionar nova imagem
     if request.method == 'POST' and 'adicionar_nova_imagem' in request.form and 'nova_imagem_galeria' in request.files:
@@ -447,9 +556,9 @@ def editar_produto(produto_id):
         flash('Produto não encontrado.', 'warning')
         return redirect(url_for('admin'))
 
-# 🗑️ Excluir produto
 @app.route('/admin/excluir/<int:produto_id>')
 def excluir_produto(produto_id):
+    """Exclusão de produto pelo admin"""
     if not session.get('admin_logado'):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('login'))
@@ -477,6 +586,10 @@ def meus_pedidos():
     except Exception as e:
         flash('Erro ao acessar pedidos.', 'danger')
     return render_template('meus_pedidos.html', pedidos=pedidos)
+
+# =========================
+# Observações e dicas
+# =========================
 
 # DICA: Para projetos maiores, utilize Blueprints e Flask-WTF para CSRF.
 

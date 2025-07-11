@@ -33,6 +33,18 @@
     {% endfor %}
   {% endif %}
 
+  <!-- Formulário de Importação Rápida via Excel -->
+  <form method="post" enctype="multipart/form-data" class="border p-4 bg-white shadow-sm rounded mb-4">
+    <h4 class="mb-3">Importar Produtos via Excel</h4>
+    <div class="mb-3">
+      <input type="file" name="excel_produtos" accept=".xlsx,.xls" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-success">Importar Excel</button>
+    <small class="text-muted ms-2">O arquivo deve conter as colunas: nome, descricao, preco, estoque.</small>
+    <br>
+    <a href="{{ url_for('static', filename='doc/modelo_cadastro_produtos.xlsx') }}" class="btn btn-link mt-2">Baixar modelo de planilha</a>
+  </form>
+
   <!-- Formulário de Cadastro -->
   <form method="post" action="/admin/adicionar" enctype="multipart/form-data" class="border p-4 bg-white shadow-sm rounded">
     <h4 class="mb-3">Adicionar Novo Produto</h4>
